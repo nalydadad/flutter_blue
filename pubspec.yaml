@@ -12,9 +12,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  convert: ^3.0.0
+  convert:
   protobuf: ^2.0.0
-  rxdart: ^0.26.0
+  rxdart:
   collection: ^1.15.0
   meta: ^1.3.0
 
