@@ -48,7 +48,8 @@ typedef NS_ENUM(NSUInteger, LogLevel) {
   FlutterEventChannel* stateChannel = [FlutterEventChannel eventChannelWithName:NAMESPACE @"/state" binaryMessenger:[registrar messenger]];
   FlutterBluePlugin* instance = [[FlutterBluePlugin alloc] init];
   instance.channel = channel;
-  instance.centralManager = [[CBCentralManager alloc] initWithDelegate:instance queue:nil];
+  instance.centralManager = [[CBCentralManager alloc] initWithDelegate:instance queue:nil options:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithBool:YES],CBCentralManagerOptionShowPowerAlertKey,NAMESPACE,CBCentralManagerOptionRestoreIdentifierKey, nil]];
+
   instance.scannedPeripherals = [NSMutableDictionary new];
   instance.servicesThatNeedDiscovered = [NSMutableArray new];
   instance.characteristicsThatNeedDiscovered = [NSMutableArray new];
@@ -373,6 +374,13 @@ typedef NS_ENUM(NSUInteger, LogLevel) {
   ProtosScanResult *result = [self toScanResultProto:peripheral advertisementData:advertisementData RSSI:RSSI];
   [_channel invokeMethod:@"ScanResult" arguments:[self toFlutterData:result]];
 }
+
+- (void)centralManager:(CBCentralManager *)central willRestoreState:(NSDictionary<NSString *, id> *)dict{
+    if (dict) {
+        NSLog(@"willRestoreState: %@",dict);
+    }
+}
+
 
 - (void)centralManager:(CBCentralManager *)central didConnectPeripheral:(CBPeripheral *)peripheral {
   NSLog(@"didConnectPeripheral");
