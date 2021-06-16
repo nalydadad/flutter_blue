@@ -378,6 +378,14 @@ typedef NS_ENUM(NSUInteger, LogLevel) {
 - (void)centralManager:(CBCentralManager *)central willRestoreState:(NSDictionary<NSString *, id> *)dict{
     if (dict) {
         NSLog(@"willRestoreState: %@",dict);
+        // Register self as delegate for peripheral
+        NSArray *restoredStatePeripherals = [dict objectForKey:CBCentralManagerRestoredStatePeripheralsKey];
+        if (restoredStatePeripherals != nil && restoredStatePeripherals.count > 0) {
+            for (CBPeripheral *connectedPeripheral in restoredStatePeripherals) {
+                NSLog(@"willRestoreState connectedPeripheral: %@",connectedPeripheral);
+                connectedPeripheral.delegate = self;
+            }
+        }
     }
 }
 
