@@ -384,6 +384,12 @@ typedef NS_ENUM(NSUInteger, LogLevel) {
             for (CBPeripheral *connectedPeripheral in restoredStatePeripherals) {
                 NSLog(@"willRestoreState connectedPeripheral: %@",connectedPeripheral);
                 connectedPeripheral.delegate = self;
+                // Send initial mtu size
+                uint32_t mtu = [self getMtu:connectedPeripheral];
+                [_channel invokeMethod:@"MtuSize" arguments:[self toFlutterData:[self toMtuSizeResponseProto:connectedPeripheral mtu:mtu]]];
+                
+                // Send connection state
+                [_channel invokeMethod:@"DeviceState" arguments:[self toFlutterData:[self toDeviceStateProto:connectedPeripheral state:connectedPeripheral.state]]];
             }
         }
     }
