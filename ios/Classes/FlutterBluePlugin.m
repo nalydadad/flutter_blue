@@ -37,6 +37,7 @@ typedef NS_ENUM(NSUInteger, LogLevel) {
 @property(nonatomic) NSMutableDictionary *scannedPeripherals;
 @property(nonatomic) NSMutableArray *servicesThatNeedDiscovered;
 @property(nonatomic) NSMutableArray *characteristicsThatNeedDiscovered;
+@property(nonatomic) NSMutableArray *connectedPeripheralList;
 @property(nonatomic) LogLevel logLevel;
 @end
 
@@ -53,6 +54,7 @@ typedef NS_ENUM(NSUInteger, LogLevel) {
   instance.scannedPeripherals = [NSMutableDictionary new];
   instance.servicesThatNeedDiscovered = [NSMutableArray new];
   instance.characteristicsThatNeedDiscovered = [NSMutableArray new];
+  instance.connectedPeripheralList = [NSMutableArray new];
   instance.logLevel = emergency;
   
   // STATE
@@ -366,6 +368,35 @@ typedef NS_ENUM(NSUInteger, LogLevel) {
     FlutterStandardTypedData *data = [self toFlutterData:[self toBluetoothStateProto:self->_centralManager.state]];
     self.stateStreamHandler.sink(data);
   }
+    if (@available(iOS 10.0, *)) {
+        if (central.state == CBManagerStatePoweredOn) {
+            NSLog(@"periphs count = %d",[self.connectedPeripheralList count]);
+            for (CBPeripheral *peripheral in self.connectedPeripheralList ) {
+                if (peripheral.state == CBPeripheralStateConnected){
+                    peripheral.delegate = self;
+
+                    // Send initial mtu size
+                    uint32_t mtu = [self getMtu:peripheral];
+                    [_channel invokeMethod:@"MtuSize" arguments:[self toFlutterData:[self toMtuSizeResponseProto:peripheral mtu:mtu]]];
+                    
+                    [_channel invokeMethod:@"DeviceState" arguments:[self toFlutterData:[self toDeviceStateProto:peripheral state:peripheral.state]]];
+                    NSMutableArray *serviceUUID = [[NSMutableArray alloc]init];
+                    for (CBService* service in peripheral.services) {
+                        [serviceUUID addObject:service.UUID];
+                    }
+                    [peripheral discoverServices:serviceUUID];
+
+                }else{
+                    [_centralManager cancelPeripheralConnection:peripheral];
+                    [_centralManager connectPeripheral:peripheral options:nil];
+                }
+            }
+            [self.connectedPeripheralList removeAllObjects];
+                   
+        }
+    }
+    
+    
 }
 
 - (void)centralManager:(CBCentralManager *)central didDiscoverPeripheral:(CBPeripheral *)peripheral advertisementData:(NSDictionary<NSString *,id> *)advertisementData RSSI:(NSNumber *)RSSI {
@@ -383,13 +414,9 @@ typedef NS_ENUM(NSUInteger, LogLevel) {
         if (restoredStatePeripherals != nil && restoredStatePeripherals.count > 0) {
             for (CBPeripheral *connectedPeripheral in restoredStatePeripherals) {
                 NSLog(@"willRestoreState connectedPeripheral: %@",connectedPeripheral);
-                connectedPeripheral.delegate = self;
-                // Send initial mtu size
-                uint32_t mtu = [self getMtu:connectedPeripheral];
-                [_channel invokeMethod:@"MtuSize" arguments:[self toFlutterData:[self toMtuSizeResponseProto:connectedPeripheral mtu:mtu]]];
-                
-                // Send connection state
-                [_channel invokeMethod:@"DeviceState" arguments:[self toFlutterData:[self toDeviceStateProto:connectedPeripheral state:connectedPeripheral.state]]];
+                if (connectedPeripheral.state == CBPeripheralStateConnected || connectedPeripheral.state == CBPeripheralStateConnecting) {
+                    [self.connectedPeripheralList addObject:connectedPeripheral];
+                }
             }
         }
     }
