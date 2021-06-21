@@ -391,7 +391,7 @@ typedef NS_ENUM(NSUInteger, LogLevel) {
                     [_centralManager connectPeripheral:peripheral options:nil];
                 }
             }
-            [self.connectedPeripheralList removeAllObjects];
+//            [self.connectedPeripheralList removeAllObjects];
                    
         }
     }
@@ -484,9 +484,18 @@ typedef NS_ENUM(NSUInteger, LogLevel) {
     // Still discovering
     return;
   }
-  // Send updated tree
-  ProtosDiscoverServicesResult *result = [self toServicesResultProto:peripheral];
-  [_channel invokeMethod:@"DiscoverServicesResult" arguments:[self toFlutterData:result]];
+    
+  if([_connectedPeripheralList containsObject:peripheral]){
+      // Skip the discover services result if it was restored.
+      NSLog(@"Skip didDiscoverDescriptorsForCharacteristic %@",peripheral);
+      [_connectedPeripheralList removeObject:peripheral];
+  }else{
+      // Send updated tree
+      ProtosDiscoverServicesResult *result = [self toServicesResultProto:peripheral];
+      [_channel invokeMethod:@"DiscoverServicesResult" arguments:[self toFlutterData:result]];
+  }
+    
+  
 }
 
 - (void)peripheral:(CBPeripheral *)peripheral didDiscoverIncludedServicesForService:(CBService *)service error:(NSError *)error {
