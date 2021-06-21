@@ -485,16 +485,10 @@ typedef NS_ENUM(NSUInteger, LogLevel) {
     return;
   }
     
-  if([_connectedPeripheralList containsObject:peripheral]){
-      // Skip the discover services result if it was restored.
-      NSLog(@"Skip didDiscoverDescriptorsForCharacteristic %@",peripheral);
-      [_connectedPeripheralList removeObject:peripheral];
-  }else{
-      // Send updated tree
-      ProtosDiscoverServicesResult *result = [self toServicesResultProto:peripheral];
-      [_channel invokeMethod:@"DiscoverServicesResult" arguments:[self toFlutterData:result]];
-  }
-    
+  // Send updated tree
+  ProtosDiscoverServicesResult *result = [self toServicesResultProto:peripheral];
+  [_channel invokeMethod:@"DiscoverServicesResult" arguments:[self toFlutterData:result]];
+  
   
 }
 
@@ -533,25 +527,34 @@ typedef NS_ENUM(NSUInteger, LogLevel) {
 }
 
 - (void)peripheral:(CBPeripheral *)peripheral didUpdateNotificationStateForCharacteristic:(CBCharacteristic *)characteristic error:(NSError *)error {
-  NSLog(@"didUpdateNotificationStateForCharacteristic");
-  // Read CCC descriptor of characteristic
-  CBDescriptor *cccd = [self findCCCDescriptor:characteristic];
-  if(cccd == nil || error != nil) {
-    // Send error
-    ProtosSetNotificationResponse *response = [[ProtosSetNotificationResponse alloc] init];
-    [response setRemoteId:[peripheral.identifier UUIDString]];
-    [response setCharacteristic:[self toCharacteristicProto:peripheral characteristic:characteristic]];
-    [response setSuccess:false];
-    [_channel invokeMethod:@"SetNotificationResponse" arguments:[self toFlutterData:response]];
-    return;
-  }
-  
-  // Request a read
-  [peripheral readValueForDescriptor:cccd];
+    NSLog(@"didUpdateNotificationStateForCharacteristic");
+    // Read CCC descriptor of characteristic
+
+    CBDescriptor *cccd = [self findCCCDescriptor:characteristic];
+    
+    if(cccd == nil || error != nil) {
+        if([_connectedPeripheralList containsObject:peripheral]){
+        // Skip the discover services result if it was restored.
+        NSLog(@"Skip didDiscoverDescriptorsForCharacteristic %@",peripheral);
+            [_connectedPeripheralList removeObject:peripheral];
+        }else{
+            // Send error
+            ProtosSetNotificationResponse *response = [[ProtosSetNotificationResponse alloc] init];
+            [response setRemoteId:[peripheral.identifier UUIDString]];
+            [response setCharacteristic:[self toCharacteristicProto:peripheral characteristic:characteristic]];
+            [response setSuccess:false];
+            [_channel invokeMethod:@"SetNotificationResponse" arguments:[self toFlutterData:response]];
+            return;
+        }
+    }
+
+    // Request a read
+    [peripheral readValueForDescriptor:cccd];
 }
 
 - (void)peripheral:(CBPeripheral *)peripheral didUpdateValueForDescriptor:(CBDescriptor *)descriptor error:(NSError *)error {
-  ProtosReadDescriptorRequest *q = [[ProtosReadDescriptorRequest alloc] init];
+    NSLog(@"peripheral didUpdateValueForDescriptor %@",peripheral);
+    ProtosReadDescriptorRequest *q = [[ProtosReadDescriptorRequest alloc] init];
   [q setRemoteId:[peripheral.identifier UUIDString]];
   [q setCharacteristicUuid:[descriptor.characteristic.UUID fullUUIDString]];
   [q setDescriptorUuid:[descriptor.UUID fullUUIDString]];
